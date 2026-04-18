@@ -1,0 +1,236 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MAX 100
+
+// ---------- STRUCTS ----------
+struct User {
+    char username[50];
+    char password[50];
+    char role[10];
+};
+
+struct Bus {
+    char bus_id[20];
+    char name[100];
+    int seats;
+    float fare;
+};
+
+struct Booking {
+    int id;
+    char username[50];
+    char bus_id[20];
+    int seats;
+    char date[20];
+    float total;
+};
+
+// ---------- AUTH ----------
+int login(char *loggedUser, char *role) {
+    FILE *fp = fopen("users.txt", "r");
+    char u[50], p[50], r[10];
+    char inU[50], inP[50];
+
+    printf("Username: ");
+    scanf("%s", inU);
+    printf("Password: ");
+    scanf("%s", inP);
+
+    while (fscanf(fp, "%s %s %s", u, p, r) != EOF) {
+        if (strcmp(u, inU) == 0 && strcmp(p, inP) == 0) {
+            strcpy(loggedUser, u);
+            strcpy(role, r);
+            fclose(fp);
+            return 1;
+        }
+    }
+
+    fclose(fp);
+    return 0;
+}
+
+void registerUser() {
+    FILE *fp = fopen("users.txt", "a");
+    char u[50], p[50];
+
+    printf("New username: ");
+    scanf("%s", u);
+    printf("Password: ");
+    scanf("%s", p);
+
+    fprintf(fp, "%s %s user\n", u, p);
+    fclose(fp);
+
+    printf("Registered!\n");
+}
+
+// ---------- ADMIN ----------
+void addBus() {
+    FILE *fp = fopen("buses.txt", "a");
+    struct Bus b;
+
+    printf("Bus ID: ");
+    scanf("%s", b.bus_id);
+    printf("Name: ");
+    scanf(" %[^\n]", b.name);
+    printf("Seats: ");
+    scanf("%d", &b.seats);
+    printf("Fare: ");
+    scanf("%f", &b.fare);
+
+    fprintf(fp, "%s|%s|%d|%.2f\n", b.bus_id, b.name, b.seats, b.fare);
+    fclose(fp);
+
+    printf("Bus added!\n");
+}
+
+void viewBuses() {
+    FILE *fp = fopen("buses.txt", "r");
+    char line[200];
+
+    printf("\n--- BUSES ---\n");
+
+    while (fgets(line, sizeof(line), fp)) {
+        printf("%s", line);
+    }
+
+    fclose(fp);
+}
+
+// ---------- USER ----------
+void bookTicket(char *username) {
+    FILE *fp = fopen("buses.txt", "r");
+    char line[200];
+    char bus_id[20], date[20];
+    int seats;
+
+    printf("Enter travel date: ");
+    scanf("%s", date);
+
+    printf("\nAvailable Buses:\n");
+    while (fgets(line, sizeof(line), fp)) {
+        printf("%s", line);
+    }
+    fclose(fp);
+
+    printf("\nEnter Bus ID: ");
+    scanf("%s", bus_id);
+
+    printf("Number of seats: ");
+    scanf("%d", &seats);
+
+    FILE *book = fopen("bookings.txt", "a");
+
+    int id = rand() % 10000;
+
+    fprintf(book, "%d|%s|%s|%d|%s\n", id, username, bus_id, seats, date);
+
+    fclose(book);
+
+    printf("Booking successful! ID: %d\n", id);
+}
+
+void viewBookings(char *username) {
+    FILE *fp = fopen("bookings.txt", "r");
+    char line[200];
+
+    printf("\n--- YOUR BOOKINGS ---\n");
+
+    while (fgets(line, sizeof(line), fp)) {
+        if (strstr(line, username)) {
+            printf("%s", line);
+        }
+    }
+
+    fclose(fp);
+}
+
+void cancelBooking() {
+    int id;
+    printf("Enter Booking ID: ");
+    scanf("%d", &id);
+
+    FILE *fp = fopen("bookings.txt", "r");
+    FILE *temp = fopen("temp.txt", "w");
+
+    char line[200];
+
+    while (fgets(line, sizeof(line), fp)) {
+        int bid;
+        sscanf(line, "%d|", &bid);
+
+        if (bid != id) {
+            fputs(line, temp);
+        }
+    }
+
+    fclose(fp);
+    fclose(temp);
+
+    remove("bookings.txt");
+    rename("temp.txt", "bookings.txt");
+
+    printf("Cancelled!\n");
+}
+
+// ---------- MENUS ----------
+void adminMenu() {
+    int ch;
+
+    while (1) {
+        printf("\n1. Add Bus\n2. View Buses\n3. Logout\n");
+        scanf("%d", &ch);
+
+        if (ch == 1) addBus();
+        else if (ch == 2) viewBuses();
+        else break;
+    }
+}
+
+void userMenu(char *username) {
+    int ch;
+
+    while (1) {
+        printf("\n1. Book Ticket\n2. My Bookings\n3. Cancel\n4. Logout\n");
+        scanf("%d", &ch);
+
+        if (ch == 1) bookTicket(username);
+        else if (ch == 2) viewBookings(username);
+        else if (ch == 3) cancelBooking();
+        else break;
+    }
+}
+
+// ---------- MAIN ----------
+int main() {
+    char username[50], role[10];
+    int ch;
+
+    // default admin
+    FILE *fp = fopen("users.txt", "a");
+    fprintf(fp, "admin admin123 admin\n");
+    fclose(fp);
+
+    while (1) {
+        printf("\n--- BUS SYSTEM ---\n");
+        printf("1. Login\n2. Register\n3. Exit\n");
+        scanf("%d", &ch);
+
+        if (ch == 1) {
+            if (login(username, role)) {
+                if (strcmp(role, "admin") == 0)
+                    adminMenu();
+                else
+                    userMenu(username);
+            } else {
+                printf("Invalid login\n");
+            }
+        }
+        else if (ch == 2) registerUser();
+        else break;
+    }
+
+    return 0;
+}
